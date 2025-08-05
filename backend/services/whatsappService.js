@@ -74,4 +74,4 @@ export const sendTextMessage = async (to, message) => {
 //   .then(console.log)
 //   .catch(console.error);
 
-sendTemplate('919167024980').then(console.log).catch(console.error);
+// sendTemplate('919167024980').then(console.log).catch(console.error);
