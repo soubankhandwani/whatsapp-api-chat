@@ -1,40 +1,107 @@
+// import Message from '../models/Message.js';
+// export const verifyWebhook = (req, res) => {
+//   const mode = req.query['hub.mode'];
+//   const token = req.query['hub.verify_token'];
+//   const challenge = req.query['hub.challenge'];
+
+//   if (mode && token === process.env.WEBHOOK_VERIFY_TOKEN) {
+//     console.log('Webhook verified successfully');
+//     res.status(200).send(challenge);
+//   } else {
+//     res.sendStatus(403);
+//   }
+// };
+
+// export const handleWebhook = async (req, res) => {
+//   try {
+//     const entry = req.body.entry[0];
+//     const changes = entry.changes[0];
+//     const value = changes.value;
+
+//     if (value.messages) {
+//       const message = value.messages[0];
+//       const from = message.from;
+//       const msgBody = message.text.body;
+
+//       // Save to MongoDB
+//       await Message.create({
+//         user: from,
+//         message: msgBody,
+//         direction: 'incoming',
+//         timestamp: new Date(),
+//       });
+//     }
+//     console.log('Webhook event received:', req.body);
+//     res.sendStatus(200);
+//   } catch (error) {
+//     console.error('Webhook error:', error);
+//     res.status(500).json({ error: 'Webhook processing failed' });
+//   }
+// };
+
 import Message from '../models/Message.js';
+import app from '../server.js'; // Import app to access socket.io
+
 export const verifyWebhook = (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
   if (mode && token === process.env.WEBHOOK_VERIFY_TOKEN) {
-    console.log('Webhook verified successfully');
+    console.log('✅ WEBHOOK_VERIFIED');
     res.status(200).send(challenge);
   } else {
+    console.error('❌ Webhook verification failed');
     res.sendStatus(403);
   }
 };
 
 export const handleWebhook = async (req, res) => {
   try {
-    const entry = req.body.entry[0];
-    const changes = entry.changes[0];
-    const value = changes.value;
+    console.log('Received webhook:', JSON.stringify(req.body, null, 2));
 
-    if (value.messages) {
-      const message = value.messages[0];
-      const from = message.from;
-      const msgBody = message.text.body;
-
-      // Save to MongoDB
-      await Message.create({
-        user: from,
-        message: msgBody,
-        direction: 'incoming',
-        timestamp: new Date(),
-      });
+    const entry = req.body.entry?.[0];
+    if (!entry) {
+      console.log('No entry found in webhook');
+      return res.sendStatus(200);
     }
-    console.log('Webhook event received:', req.body);
+
+    const changes = entry.changes?.[0];
+    if (!changes || changes.field !== 'messages') {
+      console.log('No relevant changes found');
+      return res.sendStatus(200);
+    }
+
+    const value = changes.value;
+    const message = value.messages?.[0];
+
+    if (message) {
+      const from = message.from;
+      const msgBody = message.text?.body;
+
+      if (msgBody) {
+        console.log(`📩 New message from ${from}: ${msgBody}`);
+
+        const newMessage = new Message({
+          user: from,
+          message: msgBody,
+          direction: 'incoming',
+        });
+
+        await newMessage.save();
+
+        // Emit real-time update
+        const io = req.app.get('io');
+        if (io) {
+          io.emit('new-message', newMessage);
+          console.log(`📢 Emitted new-message event for ${from}`);
+        }
+      }
+    }
+
     res.sendStatus(200);
   } catch (error) {
-    console.error('Webhook error:', error);
-    res.status(500).json({ error: 'Webhook processing failed' });
+    console.error('❌ Webhook processing error:', error);
+    res.status(500).send('Internal Server Error');
   }
 };

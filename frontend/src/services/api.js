@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: 'http://localhost:5001/api',
+  baseURL: 'https://whatsapp-api-chat-fakw.onrender.com/api',
 });
 
 export const fetchUsers = () => API.get('/messages/users');

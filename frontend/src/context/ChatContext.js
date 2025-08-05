@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { fetchMessages, fetchUsers, sendMessage } from '../services/api';
+import { initSocket } from '../services/socket';
 
 export const ChatContext = createContext();
 
@@ -8,6 +9,35 @@ export const ChatProvider = ({ children }) => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const socket = initSocket();
+
+    socket.on('connect', () => {
+      console.log('Connected to socket server');
+    });
+
+    socket.on('new-message', (message) => {
+      console.log('Received new message via socket:', message);
+
+      // Add message if it's for the current user
+      if (message.user === selectedUser) {
+        setMessages((prev) => [...prev, message]);
+      }
+
+      // Add user to list if new
+      setUsers((prev) => {
+        if (!prev.includes(message.user)) {
+          return [...prev, message.user];
+        }
+        return prev;
+      });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [selectedUser]);
 
   useEffect(() => {
     const loadUsers = async () => {
