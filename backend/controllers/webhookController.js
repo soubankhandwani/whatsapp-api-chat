@@ -1,9 +1,11 @@
+import Message from '../models/Message.js';
 export const verifyWebhook = (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
   if (mode && token === process.env.WEBHOOK_VERIFY_TOKEN) {
+    console.log('Webhook verified successfully');
     res.status(200).send(challenge);
   } else {
     res.sendStatus(403);
@@ -29,7 +31,7 @@ export const handleWebhook = async (req, res) => {
         timestamp: new Date(),
       });
     }
-
+    console.log('Webhook event received:', req.body);
     res.sendStatus(200);
   } catch (error) {
     console.error('Webhook error:', error);
