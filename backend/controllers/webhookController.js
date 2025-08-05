@@ -40,7 +40,6 @@
 // };
 
 import Message from '../models/Message.js';
-import app from '../server.js'; // Import app to access socket.io
 
 export const verifyWebhook = (req, res) => {
   const mode = req.query['hub.mode'];
