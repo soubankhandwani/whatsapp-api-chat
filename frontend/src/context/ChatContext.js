@@ -24,7 +24,6 @@ export const ChatProvider = ({ children }) => {
       if (message.user === selectedUser) {
         setMessages((prev) => [...prev, message]);
       }
-
       // Add user to list if new
       setUsers((prev) => {
         if (!prev.includes(message.user)) {
