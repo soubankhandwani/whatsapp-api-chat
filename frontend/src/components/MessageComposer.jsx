@@ -22,6 +22,8 @@ const MessageComposer = () => {
         variant="outlined"
         placeholder="Type a message..."
         value={message}
+        autoComplete="off"
+        autoFocus
         onChange={(e) => setMessage(e.target.value)}
       />
       <Button
