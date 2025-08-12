@@ -31,6 +31,10 @@ const messageSchema = new mongoose.Schema(
       enum: ['incoming', 'outgoing'],
       required: true,
     },
+    read: {
+      type: Boolean,
+      default: false,
+    },
     // Add media support later
     media: {
       url: String,

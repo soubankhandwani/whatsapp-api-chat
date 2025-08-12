@@ -11,6 +11,7 @@ export const sendMessage = async (req, res) => {
       user: to,
       message,
       direction: 'outgoing',
+      read: true,
     });
 
     await newMessage.save();
@@ -34,11 +35,39 @@ export const getMessageHistory = async (req, res) => {
   }
 };
 
+// Mark the messsage as read
+export const markMessagesAsRead = async (req, res) => {
+  try {
+    const { user } = req.params;
+    await Message.updateMany(
+      { user, direction: 'incoming', read: false },
+      { $set: { read: true } }
+    );
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error marking messages as read:', error);
+    res.status(500).json({ error: 'Failed to mark messages as read' });
+  }
+};
+
 // Get all unique users (NEW)
 export const getUsers = async (req, res) => {
   try {
     const users = await Message.distinct('user');
-    res.status(200).json(users);
+
+    // Get unread counts for each user
+    const usersWithUnread = await Promise.all(
+      users.map(async (user) => {
+        const unreadCount = await Message.countDocuments({
+          user,
+          direction: 'incoming',
+          read: false,
+        });
+        return { user, unreadCount };
+      })
+    );
+
+    res.status(200).json(usersWithUnread);
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Failed to fetch users' });

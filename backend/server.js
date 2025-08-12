@@ -68,7 +68,8 @@ const server = createServer(app);
 // Allow localhost frontend
 const allowedOrigins = [
   'http://localhost:3000', // Your local frontend
-  'https://whatsapp-api-chat-fakw.onrender.com', // Your Render backend
+  // 'https://whatsapp-api-chat-fakw.onrender.com', // Your Render backend
+  'https://chat.digitaluniversity.net.in',
 ];
 
 // CORS configuration
@@ -141,6 +142,6 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(
-    `🌐 WebSocket available at wss://whatsapp-api-chat-fakw.onrender.com`
+    `🌐 WebSocket available at wss://chat-api.digitaluniversity.net.in`
   );
 });

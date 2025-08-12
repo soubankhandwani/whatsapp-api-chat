@@ -108,3 +108,30 @@
   gap: 8px;
   margin-bottom: 16px;
 }
+
+/* Add unread indicator styles */
+.user-list .MuiBadge-badge {
+  top: 10px;
+  right: 10px;
+  background-color: #25D366;
+}
+
+.message.incoming .text {
+  border-top-left-radius: 0;
+  transition: background-color 0.3s ease;
+}
+
+.message .timestamp {
+  display: flex;
+  align-items: center;
+  font-size: 0.7rem;
+  color: #667781;
+  text-align: right;
+  margin-top: 4px;
+}
+
+/* Highlight for unread messages */
+.message.incoming.unread .text {
+  background-color: #f0f7ff;
+  border-left: 2px solid #4a90e2;
+}

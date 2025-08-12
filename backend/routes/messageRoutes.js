@@ -3,7 +3,8 @@ import {
   sendMessage,
   getMessageHistory,
   getUsers,
-  createUser, // Make sure to import this
+  createUser,
+  markMessagesAsRead,
 } from '../controllers/messageController.js';
 
 const router = express.Router();
@@ -11,6 +12,7 @@ const router = express.Router();
 router.get('/users', getUsers);
 router.post('/users', createUser);
 router.post('/send', sendMessage);
+router.put('/mark-read/:user', markMessagesAsRead);
 router.get('/history/:user', getMessageHistory);
 
 export default router;
