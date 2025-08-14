@@ -35,7 +35,8 @@ const UserList = () => {
   return (
     <List className="user-list">
       {users.map((userData) => {
-        const user = userData;
+        const user = userData.user;
+
         const unread = unreadCounts[user] || 0;
         return (
           <ListItem
