@@ -51,19 +51,60 @@ export const markMessagesAsRead = async (req, res) => {
 };
 
 // Get all unique users (NEW)
+// export const getUsers = async (req, res) => {
+//   try {
+//     const users = await Message.distinct('user');
+
+//     // Get unread counts for each user
+//     const usersWithUnread = await Promise.all(
+//       users.map(async (user) => {
+//         const unreadCount = await Message.countDocuments({
+//           user,
+//           direction: 'incoming',
+//           read: false,
+//         });
+//         return { user, unreadCount };
+//       })
+//     );
+
+//     res.status(200).json(usersWithUnread);
+//   } catch (error) {
+//     console.error('Error fetching users:', error);
+//     res.status(500).json({ error: 'Failed to fetch users' });
+//   }
+// };
+// Get all unique users sorted by last message
 export const getUsers = async (req, res) => {
   try {
-    const users = await Message.distinct('user');
+    // Aggregate pipeline for efficiency
+    const usersWithLastMessage = await Message.aggregate([
+      {
+        $sort: { createdAt: -1 } // Sort all messages by newest first
+      },
+      {
+        $group: {
+          _id: "$user",
+          lastMessageAt: { $first: "$createdAt" },
+        }
+      },
+      {
+        $sort: { lastMessageAt: -1 } // Sort users by last message time
+      }
+    ]);
 
-    // Get unread counts for each user
+    // Attach unread counts for each user
     const usersWithUnread = await Promise.all(
-      users.map(async (user) => {
+      usersWithLastMessage.map(async (u) => {
         const unreadCount = await Message.countDocuments({
-          user,
+          user: u._id,
           direction: 'incoming',
           read: false,
         });
-        return { user, unreadCount };
+        return {
+          user: u._id,
+          lastMessageAt: u.lastMessageAt,
+          unreadCount,
+        };
       })
     );
 
