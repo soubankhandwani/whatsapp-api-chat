@@ -161,11 +161,24 @@ export const ChatProvider = ({ children }) => {
 
       // Add user to list if new
       setUsers((prev) => {
-        if (!prev.some((u) => u.user === message.user)) {
-          return [...prev, { user: message.user, unreadCount: 0 }];
+        const exists = prev.find(u => u.user === message.user);
+        if (exists) {
+          return prev.map(u =>
+            u.user === message.user
+              ? { ...u, lastMessageAt: message.timestamp || new Date().toISOString() }
+              : u
+          );
+        } else {
+          return [...prev, { user: message.user, unreadCount: 0, lastMessageAt: message.timestamp }];
         }
-        return prev;
       });
+
+      // setUsers((prev) => {
+      //   if (!prev.some((u) => u.user === message.user)) {
+      //     return [...prev, { user: message.user, unreadCount: 0 }];
+      //   }
+      //   return prev;
+      // });
     });
 
     return () => {
@@ -242,14 +255,27 @@ export const ChatProvider = ({ children }) => {
   };
 
   // Sort users: unread first, then by most recent
-  const sortedUsers = [...users].sort((a, b) => {
-    // Users with unread messages first
-    if (unreadCounts[a.user] > 0 && unreadCounts[b.user] === 0) return -1;
-    if (unreadCounts[b.user] > 0 && unreadCounts[a.user] === 0) return 1;
+  // const sortedUsers = [...users].sort((a, b) => {
+  //   // Users with unread messages first
+  //   if (unreadCounts[a.user] > 0 && unreadCounts[b.user] === 0) return -1;
+  //   if (unreadCounts[b.user] > 0 && unreadCounts[a.user] === 0) return 1;
 
-    // Then by most recent message
-    return 0;
-  });
+  //   // Then by most recent message
+  //   return 0;
+  // });
+  const sortedUsers = [...users].sort((a, b) => {
+  // Unread messages first
+  const unreadA = unreadCounts[a.user] || 0;
+  const unreadB = unreadCounts[b.user] || 0;
+  if (unreadA > 0 && unreadB === 0) return -1;
+  if (unreadB > 0 && unreadA === 0) return 1;
+
+  // Sort by last message timestamp
+  const lastA = new Date(a.lastMessageAt || 0).getTime();
+  const lastB = new Date(b.lastMessageAt || 0).getTime();
+  return lastB - lastA; // most recent first
+});
+
 
   return (
     <ChatContext.Provider
