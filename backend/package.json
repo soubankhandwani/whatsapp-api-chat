@@ -1,7 +1,7 @@
 {
   "name": "whatsapp-chat-backend",
-  "version": "1.0.0",
-  "description": "Backend for WhatsApp Chat Dashboard",
+  "version": "2.0.0",
+  "description": "Production-grade WhatsApp Chat Dashboard API",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -10,12 +10,17 @@
   },
   "dependencies": {
     "axios": "^1.6.7",
-    "body-parser": "^1.20.2",
+    "bcrypt": "^5.1.1",
+    "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.6.5",
-    "socket.io": "^4.8.1"
+    "pino": "^8.17.2",
+    "pino-pretty": "^10.3.1",
+    "socket.io": "^4.8.1",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

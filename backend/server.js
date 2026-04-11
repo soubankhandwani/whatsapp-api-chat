@@ -51,97 +51,120 @@
 //   console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
 // });
 
-import express from 'express';
-import dotenv from 'dotenv';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
-import connectDB from './config/db.js';
-import messageRoutes from './routes/messageRoutes.js';
-import webhookRoutes from './routes/webhookRoutes.js';
-import cors from 'cors';
-
-dotenv.config();
+import express from "express";
+import { createServer } from "http";
+import { Server } from "socket.io";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import config from "./config/env.js";
+import connectDB from "./config/db.js";
+import logger from "./utils/logger.js";
+import { requestLogger } from "./middleware/requestLogger.js";
+import errorHandler from "./middleware/errorHandler.js";
+import authRoutes from "./routes/authRoutes.js";
+import messageRoutes from "./routes/messageRoutes.js";
+import webhookRoutes from "./routes/webhookRoutes.js";
 
 const app = express();
 const server = createServer(app);
 
-// Allow localhost frontend
-const allowedOrigins = [
-  'http://localhost:3000', // Your local frontend
-  // 'https://whatsapp-api-chat-fakw.onrender.com', // Your Render backend
-  'https://chat.digitaluniversity.net.in',
-];
-
-// CORS configuration
+// CORS
 const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+  origin: (origin, callback) => {
+    if (!origin || config.allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      logger.warn({ origin }, "Blocked by CORS");
+      callback(new Error("Not allowed by CORS"));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   credentials: true,
 };
-
 app.use(cors(corsOptions));
 
-// Socket.IO configuration
+// Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
-    methods: ['GET', 'POST'],
+    origin: config.allowedOrigins,
+    methods: ["GET", "POST"],
     credentials: true,
   },
-  path: '/socket.io', // Explicit path
-  transports: ['websocket', 'polling'], // Enable both
-  pingInterval: 25000, // Increase ping interval
-  pingTimeout: 60000, // Increase timeout
+  path: "/socket.io",
+  transports: ["websocket", "polling"],
+  pingInterval: 25000,
+  pingTimeout: 60000,
 });
+app.set("io", io);
 
-// Attach io to app for access in controllers
-app.set('io', io);
+// Parse cookies
+app.use(cookieParser());
 
-// Middleware
-app.use(express.json());
+// Request logging
+app.use(requestLogger);
+
+// Body parsing — capture raw body for webhook signature verification
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      req.rawBody = buf;
+    },
+  }),
+);
+
+// Trust proxy (needed behind Nginx for correct IP, secure cookies)
+app.set("trust proxy", 1);
 
 // Connect to database
 connectDB();
 
 // Routes
-app.use('/api/messages', messageRoutes);
-app.use('/api/webhook', webhookRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/messages", messageRoutes);
+app.use("/api/webhook", webhookRoutes);
 
-// Test route
-app.get('/', (req, res) => {
-  res.send('WhatsApp Chat Dashboard API is running...');
-});
-
-// Health check for Render.com
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    websocket: io.engine.clientsCount > 0,
+// Health check
+app.get("/health", (_req, res) => {
+  res.json({
+    status: "ok",
+    uptime: process.uptime(),
+    connections: io.engine.clientsCount,
   });
 });
 
-// Socket.io connection
-io.on('connection', (socket) => {
-  console.log(
-    `⚡ Client connected: ${socket.id} from ${socket.handshake.headers.origin}`
+app.get("/", (_req, res) => {
+  res.json({ message: "WhatsApp Chat API" });
+});
+
+// Centralized error handler (must be last)
+app.use(errorHandler);
+
+// Socket.IO connections
+io.on("connection", (socket) => {
+  logger.info(
+    { socketId: socket.id, origin: socket.handshake.headers.origin },
+    "Client connected",
   );
 
-  socket.on('disconnect', () => {
-    console.log(`🔌 Client disconnected: ${socket.id}`);
+  socket.on("disconnect", (reason) => {
+    logger.info({ socketId: socket.id, reason }, "Client disconnected");
   });
 });
+
+// Graceful shutdown
+const gracefulShutdown = (signal) => {
+  logger.info({ signal }, "Shutting down gracefully");
+  server.close(() => {
+    logger.info("HTTP server closed");
+    process.exit(0);
+  });
+  // Force shutdown after 10s
+  setTimeout(() => process.exit(1), 10000);
+};
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 // Start server
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(
-    `🌐 WebSocket available at wss://chat-api.digitaluniversity.net.in`
-  );
+server.listen(config.port, () => {
+  logger.info({ port: config.port, env: config.nodeEnv }, "Server started");
 });

@@ -1,33 +1,30 @@
-import { io } from 'socket.io-client';
+import { io } from "socket.io-client";
 
-export const initSocket = () => {
-  const socket = io('https://whatsapp-api-chat-fakw.onrender.com', {
-    reconnection: true,
-    reconnectionAttempts: 10,
-    reconnectionDelay: 3000,
-    transports: ['websocket'], // Force WebSocket only
-    path: '/socket.io', // Must match backend
-    withCredentials: true,
-    secure: true,
-    autoConnect: true,
-  });
+let socket = null;
 
-  // Debugging listeners
-  socket.on('connect', () => {
-    console.log('✅ Connected to backend via WebSocket');
-  });
-
-  socket.on('connect_error', (err) => {
-    console.error('❌ Connection error:', err.message);
-  });
-
-  socket.on('disconnect', (reason) => {
-    console.log('⚠️ Disconnected:', reason);
-  });
-
-  socket.on('error', (err) => {
-    console.error('🔴 Socket error:', err);
-  });
-
+export const getSocket = () => {
+  if (!socket) {
+    const url = import.meta.env.VITE_SOCKET_URL || window.location.origin;
+    socket = io(url, {
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 10000,
+      transports: ["websocket", "polling"],
+      path: "/socket.io",
+      withCredentials: true,
+      autoConnect: false,
+    });
+  }
   return socket;
+};
+
+export const connectSocket = () => {
+  const s = getSocket();
+  if (!s.connected) s.connect();
+  return s;
+};
+
+export const disconnectSocket = () => {
+  if (socket?.connected) socket.disconnect();
 };

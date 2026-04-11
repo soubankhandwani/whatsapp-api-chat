@@ -1,144 +1,53 @@
-import Message from '../models/Message.js';
-import { sendTextMessage } from '../services/whatsappService.js';
+import { messageService } from "../services/messageService.js";
 
-// Send a new message
-export const sendMessage = async (req, res) => {
+export const sendMessage = async (req, res, next) => {
   try {
     const { to, message } = req.body;
-    const result = await sendTextMessage(to, message);
+    const saved = await messageService.sendMessage(to, message);
 
-    const newMessage = new Message({
-      user: to,
-      message,
-      direction: 'outgoing',
-      read: true,
-    });
+    // Emit real-time event
+    const io = req.app.get("io");
+    if (io) io.emit("new-message", saved);
 
-    await newMessage.save();
-
-    res.status(201).json(result);
+    res.status(201).json(saved);
   } catch (error) {
-    console.error('Error sending message:', error);
-    res.status(500).json({ error: 'Failed to send message' });
+    next(error);
   }
 };
 
-// Get message history for a user
-export const getMessageHistory = async (req, res) => {
+export const getMessageHistory = async (req, res, next) => {
   try {
-    const { user } = req.params;
-    const messages = await Message.find({ user }).sort({ createdAt: 1 });
-    res.status(200).json(messages);
+    const messages = await messageService.getMessages(req.params.user);
+    res.json(messages);
   } catch (error) {
-    console.error('Error fetching message history:', error);
-    res.status(500).json({ error: 'Failed to fetch message history' });
+    next(error);
   }
 };
 
-// Mark the messsage as read
-export const markMessagesAsRead = async (req, res) => {
+export const markMessagesAsRead = async (req, res, next) => {
   try {
-    const { user } = req.params;
-    await Message.updateMany(
-      { user, direction: 'incoming', read: false },
-      { $set: { read: true } }
-    );
-    res.status(200).json({ success: true });
+    await messageService.markAsRead(req.params.user);
+    res.json({ success: true });
   } catch (error) {
-    console.error('Error marking messages as read:', error);
-    res.status(500).json({ error: 'Failed to mark messages as read' });
+    next(error);
   }
 };
 
-// Get all unique users (NEW)
-// export const getUsers = async (req, res) => {
-//   try {
-//     const users = await Message.distinct('user');
-
-//     // Get unread counts for each user
-//     const usersWithUnread = await Promise.all(
-//       users.map(async (user) => {
-//         const unreadCount = await Message.countDocuments({
-//           user,
-//           direction: 'incoming',
-//           read: false,
-//         });
-//         return { user, unreadCount };
-//       })
-//     );
-
-//     res.status(200).json(usersWithUnread);
-//   } catch (error) {
-//     console.error('Error fetching users:', error);
-//     res.status(500).json({ error: 'Failed to fetch users' });
-//   }
-// };
-// Get all unique users sorted by last message
-export const getUsers = async (req, res) => {
+export const getUsers = async (req, res, next) => {
   try {
-    // Aggregate pipeline for efficiency
-    const usersWithLastMessage = await Message.aggregate([
-      {
-        $sort: { createdAt: -1 } // Sort all messages by newest first
-      },
-      {
-        $group: {
-          _id: "$user",
-          lastMessageAt: { $first: "$createdAt" },
-        }
-      },
-      {
-        $sort: { lastMessageAt: -1 } // Sort users by last message time
-      }
-    ]);
-
-    // Attach unread counts for each user
-    const usersWithUnread = await Promise.all(
-      usersWithLastMessage.map(async (u) => {
-        const unreadCount = await Message.countDocuments({
-          user: u._id,
-          direction: 'incoming',
-          read: false,
-        });
-        return {
-          user: u._id,
-          lastMessageAt: u.lastMessageAt,
-          unreadCount,
-        };
-      })
-    );
-
-    res.status(200).json(usersWithUnread);
+    const users = await messageService.getUsers();
+    res.json(users);
   } catch (error) {
-    console.error('Error fetching users:', error);
-    res.status(500).json({ error: 'Failed to fetch users' });
+    next(error);
   }
 };
 
-export const createUser = async (req, res) => {
+export const createUser = async (req, res, next) => {
   try {
-    const { user } = req.body;
-    if (!user) {
-      return res.status(400).json({ error: 'User is required' });
-    }
-
-    // Check if user already exists
-    const existingUser = await Message.findOne({ user });
-    if (existingUser) {
-      return res.status(400).json({ error: 'User already exists' });
-    }
-
-    // Create a new message entry for the user
-    const newMessage = new Message({
-      user,
-      message: 'Welcome to WhatsApp Chat Dashboard!',
-      direction: 'outgoing',
-    });
-
-    await newMessage.save();
-    res.status(201).json({ message: 'User created successfully' });
+    const { phoneNumber } = req.body;
+    await messageService.createContact(phoneNumber);
+    res.status(201).json({ message: "Contact created" });
   } catch (error) {
-    console.error('Error creating user:', error);
-    res.status(500).json({ error: 'Failed to create user' });
+    next(error);
   }
 };

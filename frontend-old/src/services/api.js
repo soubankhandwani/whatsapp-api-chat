@@ -1,0 +1,12 @@
+import axios from 'axios';
+
+const API = axios.create({
+  baseURL: 'https://chat-api.digitaluniversity.net.in/api',
+});
+
+export const fetchUsers = () => API.get('/messages/users');
+export const fetchMessages = (user) => API.get(`/messages/history/${user}`);
+export const sendMessage = (to, message) =>
+  API.post('/messages/send', { to, message });
+export const markMessagesAsRead = (user) =>
+  API.put(`/messages/mark-read/${user}`);
